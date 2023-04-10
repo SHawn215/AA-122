@@ -1,0 +1,688 @@
+Public Class yyfbf
+
+    Private Sub ButtonX2_Click(sender As Object, e As EventArgs) Handles But_TJ.Click
+        FLEX1.Rows.Clear()
+        FLEX1.Columns.Clear()
+        RS = New DataSet
+        Try
+            System.Windows.Forms.Cursor.Current = Cursors.WaitCursor
+            Dim YWLX As String = "AND NOT 业务类型='D'"
+
+            If OPT_zy.Checked Then
+                YWLX = " AND 业务类型='K'"
+            End If
+
+            If OPT_MZ.Checked Then
+                If Not Chk_ywlx.Checked Then
+                    YWLX = " AND NOT 业务类型='K' AND NOT 业务类型='D'"
+                Else
+                    If Com_YWLX.Text.Length > 0 Then
+                        YWLX = " AND 业务类型='" & Com_YWLX.SelectedValue & "'"
+                    End If
+                End If
+            End If
+
+            Dim ZXKS As String = ""
+            If ChK_YSKS.Checked Then
+                ZXKS = " AND 医生编号 IN (SELECT 编号 FROM YSDM WHERE 所属科室='" & Com_ZXks.SelectedValue & "')"
+            End If
+
+            Dim SJ As String = " WHERE  Convert(VARCHAR(20),时间,23)>='" & D_KSRQ.Value.Date.ToString("yyyy-MM-dd") & "' AND  Convert(VARCHAR(20),时间,23)<='" & D_jsrq.Value.Date.ToString("yyyy-MM-dd") & "'"
+            Dim CYSJ As String = " WHERE  Convert(VARCHAR(20),出院时间,23)>='" & D_KSRQ.Value.Date.ToString("yyyy-MM-dd") & "' AND  Convert(VARCHAR(20),出院时间,23)<='" & D_jsrq.Value.Date.ToString("yyyy-MM-dd") & "'"
+
+            Dim bqbh As String = ""
+            If ChK_BQBH.Checked Then
+                bqbh = " and 病区编号='" & Com_BQBH.SelectedValue & "'"
+            End If
+            Dim CNN As New SqlClient.SqlConnection(ConnectString)
+            CNN.Open()
+            Dim COMM As New SqlClient.SqlCommand
+            COMM.Connection = CNN
+            SQLTXT = "CREATE TABLE #LFH (医院类别名称 VARCHAR(20),序号 INT)"
+            COMM.CommandText = SQLTXT
+            COMM.ExecuteNonQuery()
+            Dim KADPT As SqlClient.SqlDataAdapter
+
+            If OPT_QB.Checked Then  '全部
+                '非住院
+                Dim XK As String = " AND NOT 业务类型='K' AND NOT 业务类型='D'"
+                SQLTXT = "SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX " & SJ & ZXKS & XK
+                KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                KADPT.Fill(RS, "K1")
+                SQLTXT = ""
+                If RS.Tables("K1").Rows.Count > 0 Then
+                    For Each ROW As DataRow In RS.Tables("K1").Rows
+                        SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                    Next
+                    If Not SQLTXT = "" Then
+                        COMM.CommandText = SQLTXT
+                        COMM.ExecuteNonQuery()
+                    End If
+                End If
+
+                SQLTXT = "SELECT DISTINCT 库别名称  AS 医院类别名称,1 AS 序号 FROM V_YFXSCX " & SJ & ZXKS & XK
+                KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                KADPT.Fill(RS, "K2")
+                SQLTXT = ""
+                If RS.Tables("K2").Rows.Count > 0 Then
+                    For Each ROW As DataRow In RS.Tables("K2").Rows
+                        SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                    Next
+                    If Not SQLTXT = "" Then
+                        COMM.CommandText = SQLTXT
+                        COMM.ExecuteNonQuery()
+                    End If
+                End If
+
+                If ChK_CYBR.Checked Then '出院病人
+
+                    'SQLTXT = " SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX A INNER JOIN v_zyxxcx B ON A.住院编号=B.住院编号 " & CYSJ & ZXKS & bqbh
+                    SQLTXT = " SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX  WHERE EXISTS (SELECT 住院编号 FROM  v_zyxxcx " & CYSJ & ZXKS & bqbh & "  AND 住院编号=V_YFSFCX.住院编号)"
+
+                    KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    KADPT.Fill(RS, "K3")
+                    SQLTXT = ""
+                    If RS.Tables("K3").Rows.Count > 0 Then
+                        For Each ROW As DataRow In RS.Tables("K3").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+
+                    SQLTXT = "SELECT DISTINCT 库别名称 AS 医院类别名称,1 AS 序号 FROM V_YFXSCX WHERE EXISTS (SELECT 住院编号 FROM  v_zyxxcx " & CYSJ & ZXKS & bqbh & "  AND 住院编号=V_YFXSCX.住院编号)"
+                    KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    KADPT.Fill(RS, "K4")
+                    SQLTXT = ""
+                    If RS.Tables("K4").Rows.Count > 0 Then
+                        For Each ROW As DataRow In RS.Tables("K4").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+
+                Else
+                    Dim ZY As String = " AND 业务类型='K'"
+                    'SQLTXT = "SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX A INNER JOIN v_zyxxcx B ON A.住院编号=B.住院编号 " & SJ & ZXKS & bqbh & ZY
+                    SQLTXT = "SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX WHERE EXISTS (SELECT 住院编号 FROM  v_zyxxcx " & SJ & ZXKS & bqbh & "  AND 住院编号=V_YFSFCX.住院编号)" & ZY
+                    KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    KADPT.Fill(RS, "K11")
+                    SQLTXT = ""
+                    If RS.Tables("K11").Rows.Count > 0 Then
+                        For Each ROW As DataRow In RS.Tables("K11").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+
+                    '  SQLTXT = "SELECT DISTINCT 库别名称  AS 医院类别名称,1 AS 序号 FROM V_YFXSCX A INNER JOIN v_zyxxcx B ON A.住院编号=B.住院编号 " & SJ & ZXKS & bqbh & ZY
+                    SQLTXT = "SELECT DISTINCT 库别名称  AS 医院类别名称,1 AS 序号 FROM V_YFXSCX  where  EXISTS (SELECT 住院编号 FROM v_zyxxcx " & SJ & ZXKS & bqbh & " AND 住院编号=V_YFXSCX.住院编号)" & ZY
+                    KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    KADPT.Fill(RS, "K22")
+                    SQLTXT = ""
+                    If RS.Tables("K22").Rows.Count > 0 Then
+                        For Each ROW As DataRow In RS.Tables("K22").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+                End If
+            End If
+            If OPT_MZ.Checked Then  '门诊
+                '非住院
+                SQLTXT = "SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX " & SJ & ZXKS & YWLX
+                KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                KADPT.Fill(RS, "K1")
+                SQLTXT = ""
+                If RS.Tables("K1").Rows.Count > 0 Then
+                    For Each ROW As DataRow In RS.Tables("K1").Rows
+                        SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                    Next
+                    If Not SQLTXT = "" Then
+                        COMM.CommandText = SQLTXT
+                        COMM.ExecuteNonQuery()
+                    End If
+                End If
+
+                SQLTXT = "SELECT DISTINCT 库别名称  AS 医院类别名称,1 AS 序号 FROM V_YFXSCX " & SJ & ZXKS & YWLX
+                KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                KADPT.Fill(RS, "K2")
+                SQLTXT = ""
+                If RS.Tables("K2").Rows.Count > 0 Then
+                    For Each ROW As DataRow In RS.Tables("K2").Rows
+                        SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                    Next
+                    If Not SQLTXT = "" Then
+                        COMM.CommandText = SQLTXT
+                        COMM.ExecuteNonQuery()
+                    End If
+                End If
+            End If
+
+            If OPT_zy.Checked Then
+                If ChK_CYBR.Checked Then '出院病人
+                    'SQLTXT = " SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX A INNER JOIN v_zyxxcx B ON A.住院编号=B.住院编号 " & CYSJ & ZXKS & bqbh
+                    SQLTXT = " SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX where  EXISTS (SELECT 住院编号 FROM  v_zyxxcx " & CYSJ & ZXKS & bqbh & "  AND 住院编号=V_YFSFCX.住院编号)"
+
+                    KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    KADPT.Fill(RS, "K3")
+                    SQLTXT = ""
+                    If RS.Tables("K3").Rows.Count > 0 Then
+                        For Each ROW As DataRow In RS.Tables("K3").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+
+                    SQLTXT = "SELECT DISTINCT 库别名称 AS 医院类别名称,1 AS 序号 FROM V_YFXSCX  where EXISTS (SELECT 住院编号 FROM  v_zyxxcx " & SJ & ZXKS & bqbh & "  AND 住院编号=V_YFXSCX.住院编号)"
+                    KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    KADPT.Fill(RS, "K4")
+                    SQLTXT = ""
+                    If RS.Tables("K4").Rows.Count > 0 Then
+                        For Each ROW As DataRow In RS.Tables("K4").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+
+                Else
+
+                    SQLTXT = "SELECT DISTINCT 医院类别名称, 2 AS 序号 FROM V_YFSFCX WHERE EXISTS (SELECT 住院编号 FROM  v_zyxxcx " & SJ & ZXKS & bqbh & "  AND 住院编号=V_YFSFCX.住院编号)" & YWLX
+                    KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    KADPT.Fill(RS, "K11")
+                    SQLTXT = ""
+                    If RS.Tables("K11").Rows.Count > 0 Then
+                        For Each ROW As DataRow In RS.Tables("K11").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+
+                    SQLTXT = "SELECT DISTINCT 库别名称  AS 医院类别名称,1 AS 序号 FROM V_YFXSCX  WHERE  EXISTS (SELECT 住院编号 FROM  v_zyxxcx " & SJ & ZXKS & bqbh & "  AND 住院编号=V_YFXSCX.住院编号)" & YWLX
+                    KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    KADPT.Fill(RS, "K22")
+                    SQLTXT = ""
+                    If RS.Tables("K22").Rows.Count > 0 Then
+                        For Each ROW As DataRow In RS.Tables("K22").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #LFH(医院类别名称,序号) VALUES('" & ROW("医院类别名称") & "'," & ROW("序号") & ") ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+                End If
+            End If
+            '题目检索结束 
+
+            SQLTXT = " SELECT DISTINCT 医院类别名称,序号 FROM #LFH ORDER BY 序号"
+            KADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+
+            KADPT.Fill(RS, "TM")
+
+            If RS.Tables("TM").Rows.Count = 0 Then
+                System.Windows.Forms.Cursor.Current = Cursors.Default
+                MessageBox.Show("统计期内没有数据!")
+                Exit Sub
+            End If
+            FLEX1.Rows.Clear()
+            FLEX1.ColumnCount = RS.Tables("TM").Rows.Count + 7
+            For I As Integer = 0 To RS.Tables("TM").Rows.Count - 1
+                FLEX1.Columns(I + 1).HeaderText = RS.Tables("TM").Rows(I)("医院类别名称").ToString.Trim
+                FLEX1.Columns(I + 1).Name = RS.Tables("TM").Rows(I)("医院类别名称").ToString.Trim
+                FLEX1.Columns(I + 1).SortMode = DataGridViewColumnSortMode.NotSortable
+            Next
+
+            FLEX1.Columns(0).HeaderText = "名称"
+            FLEX1.Columns(0).Name = "名称"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 1).HeaderText = "诊断费"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 1).Name = "诊断费"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 2).HeaderText = "药袋费"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 2).Name = "药袋费"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 3).HeaderText = "输液费"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 3).Name = "输液费"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 4).HeaderText = "其他"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 4).Name = "其他"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 5).HeaderText = "合计"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 5).Name = "合计"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 6).HeaderText = "编号"
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 6).Name = "编号"
+
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 1).SortMode = DataGridViewColumnSortMode.NotSortable
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 2).SortMode = DataGridViewColumnSortMode.NotSortable
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 3).SortMode = DataGridViewColumnSortMode.NotSortable
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 4).SortMode = DataGridViewColumnSortMode.NotSortable
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 5).SortMode = DataGridViewColumnSortMode.NotSortable
+            FLEX1.Columns(RS.Tables("TM").Rows.Count + 6).SortMode = DataGridViewColumnSortMode.NotSortable
+            SQLTXT = "create table #xsrb (医院类别名称 VARCHAR(30),销售金额 NUMERIC(10,3),医生编号 VARCHAR(7),医生姓名 VARCHAR(10),科室名称 VARCHAR(50),科室编号 VARCHAR(10))"
+
+            COMM.CommandText = SQLTXT
+            COMM.ExecuteNonQuery()
+
+            If OPT_MZ.Checked Or OPT_QB.Checked Then  '现款及全部
+                '1现款
+                Dim YWLX1 As String = " AND NOT 业务类型='K' AND NOT 业务类型='D'"
+                SQLTXT = "SELECT 医院类别名称,SUM(销售金额) AS 销售金额,医生编号 FROM V_SPXS_XK A INNER JOIN V_SFXMCX B ON A.编号=B.编号 " & SJ & ZXKS & YWLX1 & " GROUP BY 医院类别名称,医生编号 "
+                Dim BADPT As SqlClient.SqlDataAdapter
+                BADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                BADPT.Fill(RS, "SF")
+                If RS.Tables("SF").Rows.Count > 0 Then
+                    SQLTXT = ""
+                    For Each ROW As DataRow In RS.Tables("SF").Rows
+                        SQLTXT = SQLTXT & "INSERT INTO #XSRB(医院类别名称,销售金额,医生编号) VALUES('" & ROW("医院类别名称") & "'," & ROW("销售金额") & ",'" & ROW("医生编号") & "') ;"
+                    Next
+                    If Not SQLTXT = "" Then
+                        COMM.CommandText = SQLTXT
+                        COMM.ExecuteNonQuery()
+                    End If
+                End If
+
+                SQLTXT = "SELECT 库别名称 AS 医院类别名称 ,SUM(销售金额) AS 销售金额,医生编号 FROM V_SPXS_XK A INNER JOIN V_SPXXCX B ON A.编号=B.编号 " & SJ & ZXKS & YWLX1 & " GROUP BY 库别名称,医生编号"
+                BADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                BADPT.Fill(RS, "XS")
+                If RS.Tables("XS").Rows.Count > 0 Then
+                    SQLTXT = ""
+                    For Each ROW As DataRow In RS.Tables("XS").Rows
+                        SQLTXT = SQLTXT & "INSERT INTO #XSRB(医院类别名称,销售金额,医生编号) VALUES('" & ROW("医院类别名称") & "'," & ROW("销售金额") & ",'" & ROW("医生编号") & "') ;"
+                    Next
+                    If Not SQLTXT = "" Then
+                        COMM.CommandText = SQLTXT
+                        COMM.ExecuteNonQuery()
+                    End If
+                End If
+            End If  '现款结束 
+
+            If OPT_zy.Checked Or OPT_QB.Checked Then
+                If Not ChK_CYBR.Checked Then '正常业务
+                    Dim YWLX1 As String = " AND 业务类型='K'"
+                    If bqbh = "" Then
+                        SQLTXT = "SELECT 医院类别名称,SUM(销售金额) AS 销售金额,医生编号 FROM V_SPXS_ZY A INNER JOIN V_SFXMCX B ON A.编号=B.编号  " & SJ & ZXKS & YWLX1 & " GROUP BY 医院类别名称,医生编号 "
+                    Else
+                        SQLTXT = "SELECT 医院类别名称,SUM(销售金额) AS 销售金额,医生编号 FROM V_SPXS_ZY A INNER JOIN V_SFXMCX B ON A.编号=B.编号 INNER JOIN V_ZYXXCX C ON A.住院编号=C.住院编号 " & SJ & ZXKS & YWLX1 & bqbh & " GROUP BY 医院类别名称,医生编号 "
+                    End If
+
+                    Dim BADPT As SqlClient.SqlDataAdapter
+                    BADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    BADPT.Fill(RS, "ZYSF")
+                    If RS.Tables("ZYSF").Rows.Count > 0 Then
+                        SQLTXT = ""
+                        For Each ROW As DataRow In RS.Tables("ZYSF").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #XSRB(医院类别名称,销售金额,医生编号) VALUES('" & ROW("医院类别名称") & "'," & ROW("销售金额") & ",'" & ROW("医生编号") & "') ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+                    If bqbh = "" Then
+                        SQLTXT = "SELECT 库别名称 AS 医院类别名称 ,SUM(销售金额) AS 销售金额,医生编号 FROM SPXS_ZY A INNER JOIN V_SPXXCX B ON A.编号=B.编号  " & SJ & ZXKS & YWLX1 & " GROUP BY 库别名称,医生编号"
+                    Else
+                        SQLTXT = "SELECT 库别名称 AS 医院类别名称 ,SUM(销售金额) AS 销售金额,医生编号 FROM SPXS_ZY A INNER JOIN V_SPXXCX B ON A.编号=B.编号 INNER JOIN V_ZYXXCX C ON A.住院编号=C.住院编号 " & SJ & ZXKS & YWLX1 & bqbh & " GROUP BY 库别名称,医生编号"
+                    End If
+                    BADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    BADPT.Fill(RS, "ZYXS")
+                    If RS.Tables("ZYXS").Rows.Count > 0 Then
+                        SQLTXT = ""
+                        For Each ROW As DataRow In RS.Tables("ZYXS").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #XSRB(医院类别名称,销售金额,医生编号) VALUES('" & ROW("医院类别名称") & "'," & ROW("销售金额") & ",'" & ROW("医生编号") & "') ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+
+                Else  '统计出院病人
+
+                    Dim AADPT As SqlClient.SqlDataAdapter
+                    SQLTXT = "SELECT 医院类别名称,SUM(销售金额) AS 销售金额,医生编号 FROM V_YFSFCX  WHERE  住院编号 IN  (SELECT 住院编号 FROM V_ZYXXCX " & CYSJ & bqbh & ") GROUP BY 医院类别名称,医生编号"
+                    AADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+
+                    AADPT.Fill(RS, "CYSF")
+                    If RS.Tables("CYSF").Rows.Count > 0 Then
+                        SQLTXT = ""
+                        For Each ROW As DataRow In RS.Tables("CYSF").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #XSRB(医院类别名称,销售金额,医生编号) VALUES('" & ROW("医院类别名称") & "'," & ROW("销售金额") & ",'" & ROW("医生编号") & "') ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+
+                    SQLTXT = " SELECT 库别名称 AS 医院类别名称 ,SUM(销售金额) AS 销售金额,医生编号 FROM V_YFXSCX A  WHERE  住院编号 IN (SELECT 住院编号 FROM V_ZYXXCX" & CYSJ & bqbh & ") GROUP BY 库别名称,医生编号"
+                    AADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+                    AADPT.Fill(RS, "CYXS")
+
+                    If RS.Tables("CYXS").Rows.Count > 0 Then
+                        SQLTXT = ""
+                        For Each ROW As DataRow In RS.Tables("CYXS").Rows
+                            SQLTXT = SQLTXT & "INSERT INTO #XSRB(医院类别名称,销售金额,医生编号) VALUES('" & ROW("医院类别名称") & "'," & ROW("销售金额") & ",'" & ROW("医生编号") & "') ;"
+                        Next
+                        If Not SQLTXT = "" Then
+                            COMM.CommandText = SQLTXT
+                            COMM.ExecuteNonQuery()
+                        End If
+                    End If
+                End If
+            End If
+
+
+            SQLTXT = "UPDATE #XSRB SET 医生姓名=B.姓名 FROM #XSRB A  INNER JOIN  YSDM B ON A.医生编号=B.编号"
+            COMM.CommandText = SQLTXT
+            COMM.ExecuteNonQuery()
+
+            SQLTXT = "UPDATE #XSRB SET 科室名称=B.名称,科室编号=B.所属科室 FROM #XSRB A  INNER JOIN  V_YSXXCX B ON A.医生编号=B.编号"
+            COMM.CommandText = SQLTXT
+            COMM.ExecuteNonQuery()
+
+            SQLTXT = "SELECT 医院类别名称,SUM(销售金额) AS 销售金额,医生编号,医生姓名 FROM #XSRB GROUP BY 医生编号,医生姓名,医院类别名称 ORDER BY 医生姓名 "
+            If ChK_YWKSTJ.Checked Then
+                SQLTXT = "SELECT 医院类别名称,SUM(销售金额) AS 销售金额,科室编号 AS 医生编号,科室名称 AS 医生姓名 FROM #XSRB GROUP BY 科室编号,科室名称,医院类别名称 ORDER BY 科室名称 "
+            End If
+            Dim ADPT As SqlClient.SqlDataAdapter
+            ADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+            ADPT.Fill(RS, "TJ")
+
+            If RS.Tables("TJ").Rows.Count = 0 Then
+                MessageBox.Show("没有信息!")
+                Exit Sub
+            End If
+
+            Dim ysbh As String = RS.Tables("TJ").Rows(0)("医生编号").ToString.Trim
+            Dim FROW As DataGridViewRow = Nothing
+            For Each ROW As DataRow In RS.Tables("TJ").Rows
+                Dim MC As String = ROW("医院类别名称").ToString.Trim
+                Dim JE As Double = ROW("销售金额").ToString
+                Dim YS As String = ROW("医生编号").ToString.Trim
+                Dim K As Integer = 0
+
+                For Each jcrow As DataGridViewRow In FLEX1.Rows
+                    If jcrow.Cells("编号").Value = YS Then
+                        K += 1
+                        If JE = Int(JE) Then
+                            jcrow.Cells(MC).Value = Format(JE, "0")
+                        Else
+                            jcrow.Cells(MC).Value = IIf(Not Math.Round(JE, 2) = Math.Round(JE, 3), Format(JE, "0.000"), Format(JE, "0.00"))
+                        End If
+
+                    End If
+                Next
+                If K = 0 Then
+                    FLEX1.Rows.Add()
+                    ysbh = YS
+                    FROW = FLEX1.Rows(FLEX1.Rows.Count - 2)
+                    If JE = Int(JE) Then
+                        FROW.Cells(MC).Value = Format(JE, "0")
+                    Else
+                        FROW.Cells(MC).Value = IIf(Not Math.Round(JE, 2) = Math.Round(JE, 3), Format(JE, "0.000"), Format(JE, "0.00"))
+                    End If
+                    FROW.Cells("名称").Value = ROW("医生姓名").ToString
+                    FROW.Cells("编号").Value = ysbh
+                End If
+
+            Next
+
+
+            SQLTXT = "SELECT 医生编号,SUM(诊费金额) AS 诊费金额,SUM(药袋金额) AS 药袋金额,SUM(护理金额) AS 护理金额,SUM(空调金额+煎药金额+观察费) AS 其他金额 FROM V_ZFXX " & SJ & YWLX & " GROUP BY 医生编号"
+            Dim FADPT As New SqlClient.SqlDataAdapter(SQLTXT, CNN)
+            FADPT.Fill(RS, "KZF")
+            If RS.Tables("KZF").Rows.Count > 0 Then
+                For Each ROW As DataRow In RS.Tables("KZF").Rows
+                    Dim BH As String = ROW("医生编号").ToString.Trim
+                    If BH.Trim.Length > 1 Then
+                        For Each NJC As DataGridViewRow In FLEX1.Rows
+                            If Not NJC.IsNewRow And Not NJC Is Nothing Then
+                                If NJC.Cells("编号").Value.ToString.Trim = BH Then
+                                    If Not Val(ROW("诊费金额").ToString) = 0 Then
+                                        NJC.Cells("诊断费").Value = ROW("诊费金额").ToString
+                                    End If
+                                    If Not Val(ROW("药袋金额").ToString) = 0 Then
+                                        NJC.Cells("药袋费").Value = ROW("药袋金额").ToString
+                                    End If
+                                    If Not Val(ROW("护理金额").ToString) = 0 Then
+                                        NJC.Cells("输液费").Value = ROW("护理金额").ToString
+                                    End If
+                                    If Not Val(ROW("其他金额").ToString) = 0 Then
+                                        NJC.Cells("其他").Value = ROW("其他金额").ToString
+                                    End If
+
+                                End If
+                            End If
+
+                        Next
+                    End If
+                Next
+            End If
+
+            Dim A(FLEX1.Columns.Count - 2) As Double
+            Dim kje As Double
+            For Each ROW As DataGridViewRow In FLEX1.Rows
+                If Not ROW.IsNewRow Then
+                    For I As Integer = 1 To FLEX1.Columns.Count - 2
+                        kje = Format(Val(ROW.Cells(I).Value), "0.000")
+                        A(I) += kje
+                    Next
+                End If
+            Next
+
+            FLEX1.Rows.Add()
+            FROW = FLEX1.Rows(FLEX1.Rows.Count - 1)
+            For I As Integer = 1 To FLEX1.Columns.Count - 2
+                '  A(I) = FROW.Cells(I).Value
+                If Not A(I) = 0 Then
+                    If Math.Round(A(I), 0) = Math.Round(A(I), 2) Then
+                        FROW.Cells(I).Value = Format(A(I), "0")
+                    Else
+                        FROW.Cells(I).Value = IIf(Not Math.Round(A(I), 2) = Math.Round(A(I), 3), Format(A(I), "0.000"), Format(A(I), "0.00"))
+                    End If
+                Else
+                    FLEX1.Columns(FROW.Cells(I).ColumnIndex).Visible = False
+                End If
+            Next
+
+            Dim SJJC As Double = 0
+            FROW.Cells("名称").Value = "合计"
+            Dim KHJ As Double = 0
+            For Each ROW As DataGridViewRow In FLEX1.Rows
+                For I As Integer = 1 To FLEX1.Columns.Count - 3
+                    kje = Val(ROW.Cells(I).Value)
+                    ROW.Cells("合计").Value = IIf(Not Math.Round(Val(ROW.Cells("合计").Value) + kje, 2) = Math.Round(Val(ROW.Cells("合计").Value) + kje, 3), Format(Val(ROW.Cells("合计").Value) + kje, "0.000"), Format(Val(ROW.Cells("合计").Value) + kje, "0.00"))
+                    SJJC = ROW.Cells("合计").Value
+                    If SJJC = Int(SJJC) Then
+                        ROW.Cells("合计").Value = Format(SJJC, "0")
+                    Else
+                        If Math.Round(SJJC, 2) = Math.Round(SJJC, 3) Then
+                            ROW.Cells("合计").Value = Format(SJJC, "0.00")
+                        Else
+                            ROW.Cells("合计").Value = Format(SJJC, "0.000")
+                        End If
+                    End If
+                Next
+                KHJ += SJJC
+            Next
+
+            System.Windows.Forms.Cursor.Current = Cursors.Default
+            FLEX1.Columns("编号").Visible = False
+            FLEX1.Columns("合计").Width = 101
+            T_ZHJ.Text = Format(KHJ / 2, "0.000")
+            FLEX1.Columns("合计").Visible = True
+            FLEX1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells
+            FLEX1.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter
+            CNN.Close()
+            CNN = Nothing
+        Catch ex As Exception
+            MessageBox.Show(ex.ToString)
+        End Try
+    End Sub
+
+    Private Sub But_TCp_Click(sender As Object, e As EventArgs) Handles But_TCp.Click
+        Dispose()
+        Me.Close()
+    End Sub
+    Public Sub New()
+        MyBase.New()
+        InitializeComponent()
+    End Sub
+    Private Sub YYFB_YJF_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Try
+            D_KSRQ.Value = DateAdd(DateInterval.Day, -30, Now.Date)
+            D_jsrq.Value = Now.Date
+            SQLTXT = "SELECT * FROM KJ_JSFS"
+            RS = YHEXE(SQLTXT, MSG)
+            With Com_YWLX
+                .DisplayMember = "结算方式名称"
+                .ValueMember = "结算方式"
+                .DataSource = RS.Tables(0)
+                .SelectedIndex = -1
+            End With
+
+            With Com_BQBH
+                .DisplayMember = "名称"
+                .ValueMember = "编号"
+                .DataSource = YHEXE("SELECT 名称,编号 FROM bqBH ORDER BY 名称", MSG).Tables(0)
+            End With
+        Catch ex As Exception
+            MessageBox.Show(ex.ToString)
+        End Try
+    End Sub
+    Private Sub But_DY_Click(sender As Object, e As EventArgs) Handles But_DY.Click
+        Try
+            Dim YW As String = ""
+            If OPT_MZ.Checked And Chk_ywlx.Checked Then
+                YW = Com_YWLX.Text
+            End If
+            If OPT_QB.Checked Then
+                YW = "全部业务"
+            End If
+            If OPT_zy.Checked Then
+                YW = "住院业务"
+            End If
+            If OPT_MZ.Checked Then
+                YW = "门诊业务"
+            End If
+            Dim DGV As New VBprinter.DGVprint
+            With DGV
+                ' .PaperKind = Printing.PaperKind.A4
+                .PaperKind = Printing.PaperKind.Custom
+                .PaperMargins = New System.Drawing.Printing.Margins(150, 140, 150, 150)
+                .PaperName = "聊城"
+                .PaperWidth = 241
+                .PaperHeight = 350
+                .SubTitle = "业务分析表"
+                .MainTitle = getgsmc()
+                .TableHeaderLeft = "时间:" & D_KSRQ.Value & "--" & D_jsrq.Value
+                .TableHeaderMiddle = "业务类型:" & YW
+                .TableHeaderRight = IIf(ChK_YSKS.Checked, Com_ZXks.Text, "")
+                .TableFooterLeft = "统计时间：" & Now()
+                .TableFooterMiddle = "操作员：" & M_CZBH
+                .PaperLandscape = True
+                .Print(FLEX1, True)
+            End With
+            DGV = Nothing
+        Catch ex As Exception
+            MessageBox.Show(ex.ToString)
+        End Try
+    End Sub
+
+    Private Sub But_DC_Click(sender As Object, e As EventArgs) Handles But_DC.Click
+        Try
+            Dim p As New VBprinter.VB2008Print
+            p.ExportDGVToExcel2(FLEX1, "cybr")
+            p = Nothing
+        Catch ex As Exception
+            MessageBox.Show(ex.ToString)
+        End Try
+    End Sub
+    Private Sub OPT_MZ_CheckedChanged(sender As Object, e As EventArgs) Handles OPT_MZ.CheckedChanged
+        If OPT_MZ.Checked Then ChK_CYBR.Checked = False
+    End Sub
+
+    Private Sub BuT_JZKS_Click(sender As Object, e As EventArgs) Handles BuT_JZKS.Click
+        Try
+            System.Windows.Forms.Cursor.Current = Cursors.WaitCursor
+            RS = New DataSet
+            Dim TJ As String = ""
+            If Not OPT_QB.Checked Then
+                If OPT_zy.Checked Then
+                    TJ = " AND 业务类型='K'"
+                End If
+                If OPT_MZ.Checked Then
+                    TJ = " AND NOT 业务类型='K' AND NOT 业务类型='D'"
+                End If
+            End If
+
+
+            Dim SJ As String = " WHERE 时间>='" & D_KSRQ.Value.Date & "' AND 时间<='" & D_jsrq.Value.Date & "'" & TJ
+            Dim SQLTXT1 As String = "SELECT DISTINCT 医生编号 FROM V_YFXSCX " & SJ
+            Dim SQLTXT2 As String = "SELECT DISTINCT 医生编号 FROM V_YFSFCX " & SJ
+            Dim CNNn As New SqlClient.SqlConnection(ConnectString)
+            Dim COMM As New SqlClient.SqlCommand
+            COMM.Connection = CNNn
+            CNNn.Open()
+            SQLTXT = "CREATE TABLE #XSRB(医生编号 VARCHAR(10),科室编号 VARCHAR(10),名称 VARCHAR(50))"
+            COMM.CommandText = SQLTXT
+            COMM.ExecuteNonQuery()
+            Dim ADPT As SqlClient.SqlDataAdapter
+            ADPT = New SqlClient.SqlDataAdapter(SQLTXT1, CNNn)
+            ADPT.Fill(RS, "XS")
+            SQLTXT = ""
+            For Each ROW As DataRow In RS.Tables("XS").Rows
+                SQLTXT = SQLTXT & "INSERT INTO #XSRB (医生编号) VALUES('" & ROW("医生编号") & "');"
+            Next
+            If Not SQLTXT = "" Then
+                COMM.CommandText = SQLTXT
+                COMM.ExecuteNonQuery()
+            End If
+            ADPT = New SqlClient.SqlDataAdapter(SQLTXT2, CNNn)
+            ADPT.Fill(RS, "SF")
+            SQLTXT = ""
+            For Each ROW As DataRow In RS.Tables("SF").Rows
+                SQLTXT = SQLTXT & "INSERT INTO #XSRB (医生编号) VALUES('" & ROW("医生编号") & "') ;"
+            Next
+            If Not SQLTXT = "" Then
+                COMM.CommandText = SQLTXT
+                COMM.ExecuteNonQuery()
+            End If
+            SQLTXT = "UPDATE #XSRB SET 科室编号=B.所属科室 FROM #XSRB A INNER JOIN YSDM B ON A.医生编号=B.编号"
+            COMM.CommandText = SQLTXT
+            COMM.ExecuteNonQuery()
+            SQLTXT = "UPDATE #XSRB SET 名称=B.名称 FROM #XSRB A INNER JOIN KSBH B ON A.科室编号=B.编号"
+            COMM.CommandText = SQLTXT
+            COMM.ExecuteNonQuery()
+            SQLTXT = "SELECT 科室编号 AS 编号,名称 FROM #XSRB GROUP BY 科室编号,名称"
+            ADPT = New SqlClient.SqlDataAdapter(SQLTXT, CNNn)
+            ADPT.Fill(RS, "TJ")
+            With Com_ZXks
+                .DisplayMember = "名称"
+                .ValueMember = "编号"
+                .DataSource = RS.Tables("TJ")
+            End With
+            CNNn.Close()
+            CNNn = Nothing
+            System.Windows.Forms.Cursor.Current = Cursors.Default
+        Catch ex As Exception
+            MessageBox.Show(ex.ToString)
+        End Try
+    End Sub
+End Class
